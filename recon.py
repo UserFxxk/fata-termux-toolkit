@@ -196,32 +196,59 @@ def audit_cors_and_cookies(target_url: str) -> list:
 
 def passive_subdomain_recon(domain_or_url: str, limit: int = 25) -> list:
     domain = extract_domain(domain_or_url)
-    print(f"\n{C.CYAN}{C.BOLD}[3/4] Passive Subdomain Enumeration via Certificate Transparency (crt.sh): {domain}{C.RESET}")
-    api_url = f"https://crt.sh/?q=%.{urllib.parse.quote(domain)}&output=json"
-    res = fetch_url(api_url, timeout=12)
+    print(f"\n{C.CYAN}{C.BOLD}[3/4] Passive Subdomain Enumeration (OTX + HackerTarget + crt.sh): {domain}{C.RESET}")
     subdomains = set()
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
 
-    if not res.get("ok") or res.get("status") != 200:
-        print(f"  {C.YELLOW}[!] crt.sh query unavailable or timed out.{C.RESET}")
-        return []
-
+    # Source 1: AlienVault OTX Passive DNS (Fast & Reliable JSON API)
     try:
-        req = urllib.request.Request(
-            api_url,
-            headers={"User-Agent": "FataReconSuite/2.0"},
-        )
-        with urllib.request.urlopen(req, timeout=12) as resp:
+        otx_url = f"https://otx.alienvault.com/api/v1/indicators/domain/{urllib.parse.quote(domain)}/passive_dns"
+        req = urllib.request.Request(otx_url, headers={"User-Agent": "FataReconSuite/2.0"})
+        with urllib.request.urlopen(req, timeout=8, context=ctx) as resp:
             data = json.loads(resp.read().decode("utf-8", errors="ignore"))
-            for entry in data:
-                for sub in entry.get("name_value", "").splitlines():
-                    sub = sub.strip().lower().lstrip("*.")
-                    if sub.endswith(domain):
-                        subdomains.add(sub)
-    except Exception as e:
-        print(f"  {C.YELLOW}[!] Failed parsing CT logs: {e}{C.RESET}")
-        return []
+            for item in data.get("passive_dns", []):
+                host = item.get("hostname", "").strip().lower().lstrip("*.")
+                if host.endswith(domain):
+                    subdomains.add(host)
+    except Exception:
+        pass
+
+    # Source 2: HackerTarget HostSearch API
+    try:
+        ht_url = f"https://api.hackertarget.com/hostsearch/?q={urllib.parse.quote(domain)}"
+        req = urllib.request.Request(ht_url, headers={"User-Agent": "FataReconSuite/2.0"})
+        with urllib.request.urlopen(req, timeout=8, context=ctx) as resp:
+            lines = resp.read().decode("utf-8", errors="ignore").splitlines()
+            for line in lines:
+                if "," in line and "API count exceeded" not in line:
+                    host = line.split(",", 1)[0].strip().lower()
+                    if host.endswith(domain):
+                        subdomains.add(host)
+    except Exception:
+        pass
+
+    # Source 3: crt.sh Certificate Transparency (Fallback if needed)
+    if len(subdomains) < 5:
+        try:
+            crt_url = f"https://crt.sh/?q=%.{urllib.parse.quote(domain)}&output=json"
+            req = urllib.request.Request(crt_url, headers={"User-Agent": "FataReconSuite/2.0"})
+            with urllib.request.urlopen(req, timeout=8, context=ctx) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+                for entry in data:
+                    for sub in entry.get("name_value", "").splitlines():
+                        sub = sub.strip().lower().lstrip("*.")
+                        if sub.endswith(domain):
+                            subdomains.add(sub)
+        except Exception:
+            pass
 
     sorted_subs = sorted(subdomains)
+    if not sorted_subs:
+        print(f"  {C.YELLOW}[!] No passive subdomains returned from OSINT sources.{C.RESET}")
+        return []
+
     print(f"  {C.GREEN}[+] Discovered {len(sorted_subs)} unique subdomains passively:{C.RESET}")
     for sub in sorted_subs[:limit]:
         try:
