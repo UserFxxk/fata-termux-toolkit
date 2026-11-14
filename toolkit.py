@@ -81,10 +81,10 @@ def main():
                 ai_chat()
 
             elif pilih == "0":
-                print(Fore.YELLOW + "\nSampai jumpa, mwahhhh! 👋")
+                print(Fore.YELLOW + "\nTerima kasih telah menggunakan Fata Termux Toolkit V2! 👋")
                 break
             else:
-                print(Fore.RED + "Pilihan salah yang bener dong!")
+                print(Fore.RED + "Pilihan tidak valid, silakan masukkan angka 0-8.")
                 pause()
 
     except KeyboardInterrupt:
