@@ -1,26 +1,84 @@
-# ⚡ Fata Termux Toolkit V2
+# 🛡️ Fata Recon & AppSec Audit Suite (v2.0)
 
-[![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Platform](https://img.shields.io/badge/Platform-Termux_%2F_Linux-10B981?style=flat-square&logo=linux&logoColor=white)](https://termux.dev)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![OWASP](https://img.shields.io/badge/Focus-OWASP_Top_10-000000?style=for-the-badge&logo=owasp&logoColor=white)](https://owasp.org)
+[![License](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)](LICENSE)
 
-Toolkit interaktif berbasis **Python CLI** untuk mempercepat alur kerja produktivitas, manajemen paket, diagnostik jaringan, dan pencatatan cepat bagi pengguna **Termux & Linux**.
+**Fata Recon & AppSec Audit Suite** adalah perangkat *Command-Line Interface (CLI)* berbasis Python tanpa dependensi eksternal (*zero external dependencies*) untuk melakukan **Web Security Reconnaissance**, **Audit Konfigurasi Header & CORS/Cookie**, **Enumerasi Subdomain Pasif (`crt.sh`)**, serta **Pemindaian Endpoint API** secara cepat dan non-destruktif.
 
-## ✨ Fitur Utama
-- **System Updater:** Otomatisasi pembaruan repositori dan paket sistem.
-- **Dev Environment Installer:** Instalasi cepat perkakas esensial (`git`, `python`, `neofetch`).
-- **Network Diagnostics:** Pemeriksaan konektivitas internet dan informasi IP publik secara instan.
-- **Quick Terminal Notes:** Mencatat ide atau temuan langsung dari command-line lengkap dengan *timestamp*.
-- **Cache Cleaner:** Membersihkan sisa *cache* instalasi untuk menghemat ruang penyimpanan perangkat.
+Dirancang untuk mempercepat tahap *Reconnaissance* pada pengujian **Bug Bounty** maupun audit keamanan aplikasi sebelum rilis produksi (*Pre-Release Security Assessment*).
 
-## 🚀 Cara Instalasi & Penggunaan
+---
 
+## ✨ Modul & Kapabilitas Utama
+
+1. **🔍 Security Header & Stack Fingerprinting Auditor (`--headers`)**
+   - Memeriksa keberadaan dan konfigurasi header keamanan krusial: `Content-Security-Policy (CSP)`, `Strict-Transport-Security (HSTS)`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, dan `Permissions-Policy`.
+   - Mendeteksi kebocoran informasi teknologi backend (*stack fingerprinting*) melalui header `X-Powered-By`, `Server`, dan `X-Generator`.
+
+2. **🍪 CORS Wildcard & Cookie Security Inspector (`--cors`)**
+   - Menguji apakah server memiliki konfigurasi `Access-Control-Allow-Origin: *` (Wildcard) atau memantulkan (*reflect*) header `Origin` arbitrer beserta `Access-Control-Allow-Credentials: true`.
+   - Memeriksa atribut keamanan pada setiap `Set-Cookie` (`HttpOnly`, `Secure`, dan risiko `SameSite=None`).
+
+3. **🌐 Passive Subdomain Enumerator via CT Logs (`--subs`)**
+   - Mengambil daftar subdomain secara pasif melalui log *Certificate Transparency* publik (`crt.sh`) tanpa mengirimkan trafik langsung ke server target, lalu melakukan resolusi IP DNS secara otomatis.
+
+4. **⚡ Concurrent API & Discovery Endpoint Prober (`--probe`)**
+   - Memeriksa ketersediaan endpoint dokumentasi dan API umum (`/api/history`, `/api/health`, `/swagger.json`, `/openapi.json`, `/graphql`, `/.well-known/security.txt`) secara konkurensi (*multi-threaded*).
+
+5. **📄 Automated Markdown Audit Report Generator (`--full`)**
+   - Menjalankan seluruh modul sekaligus dan menghasilkan laporan hasil audit berformat Markdown (`audit_report_<domain>.md`) yang siap dilampirkan pada laporan Bug Bounty.
+
+---
+
+## 🚀 Cara Penggunaan
+
+### Mode Interaktif (Menu TUI)
 ```bash
-pkg install python git
-pip install colorama
 git clone https://github.com/UserFxxk/fata-termux-toolkit.git
 cd fata-termux-toolkit
-python toolkit.py
+python3 recon.py
 ```
 
+### Mode CLI (Baris Perintah Langsung)
+```bash
+# Jalankan Full Audit & simpan laporan otomatis ke Markdown
+python3 recon.py -u example.com --full
+
+# Hanya cek Security Headers & CORS/Cookie
+python3 recon.py -u https://example.com --headers --cors
+
+# Enumerasi Subdomain Pasif (crt.sh)
+python3 recon.py -u example.com --subs
+```
+
+---
+
+## 📸 Contoh Output Terminal
+
+```text
+  ╔══════════════════════════════════════════════════════════════╗
+  ║   🛡️  FATA RECON & APPSEC AUDIT SUITE v2.0                   ║
+  ║   Build it right, break it better • userfxxk.github.io       ║
+  ╚══════════════════════════════════════════════════════════════╝
+
+[1/4] Auditing Security Headers & Tech Fingerprinting: https://example.com
+  [MISSING - HIGH] content-security-policy (Mitigates XSS and data injection attacks)
+  [MISSING - MEDIUM] strict-transport-security (Enforces HTTPS connections)
+  [INFO-LEAK] `x-powered-by: Express` exposed (Stack Fingerprinting)
+
+[2/4] Inspecting CORS Policy & Cookie Attributes: https://example.com
+  [MEDIUM] Permissive CORS Wildcard: Access-Control-Allow-Origin: *
+  [MEDIUM] Cookie `__cf_bm` flags: SameSite=None (cross-site cookie risk)
+```
+
+---
+
+## ⚠️ Disclaimer
+Perkakas ini dibuat murni untuk tujuan edukasi, riset keamanan yang sah (*Authorized Penetration Testing*), dan program *Bug Bounty* resmi. Pengguna bertanggung jawab penuh untuk mematuhi hukum dan ruang lingkup (*scope*) pengujian yang berlaku.
+
 ## 👨‍💻 Author
-**Fata Fatikhul Karim** — [userfxxk.github.io](https://userfxxk.github.io)
+**Fata Fatikhul Karim**
+- 🌐 Portfolio: [https://userfxxk.github.io](https://userfxxk.github.io)
+- 💼 LinkedIn: [linkedin.com/in/fata-fatikhul-karim](https://www.linkedin.com/in/fata-fatikhul-karim)
+- 🛡️ HackerOne: [@zeonmaltius](https://hackerone.com/zeonmaltius)
