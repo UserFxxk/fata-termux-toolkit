@@ -1,6 +1,7 @@
 import os
 import time
 from colorama import Fore, Style, init
+from tools.ai import ai_chat
 
 # Inisialisasi colorama agar warna otomatis reset
 init(autoreset=True)
@@ -35,6 +36,7 @@ def menu():
     print("5. Cek IP Publik")
     print("6. Catatan Cepat")
     print("7. Bersihkan Sampah (Clean)")
+    print("8. AI Chat")
     print(Fore.RED + "0. Exit")
 
 def main():
@@ -43,7 +45,7 @@ def main():
             clear()
             header()
             menu()
-            pilih = input(f"\n{Fore.MAGENTA}Pilih menu (0-7): ").strip()
+            pilih = input(f"\n{Fore.MAGENTA}Pilih menu (0-8): ").strip()
 
             if pilih == "1":
                 run_cmd("pkg update && pkg upgrade -y", "Mengupdate system...")
@@ -74,6 +76,9 @@ def main():
 
             elif pilih == "7":
                 run_cmd("pkg clean", "Membersihkan cache package...")
+
+            elif pilih == "8":
+                ai_chat()
 
             elif pilih == "0":
                 print(Fore.YELLOW + "\nSampai jumpa, mwahhhh! 👋")
