@@ -1,10 +1,10 @@
-# 🛡️ Fata Recon & AppSec Audit Suite (v2.0)
+# 🛡️ Fata Recon & AppSec Audit Suite (v3.0)
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![OWASP](https://img.shields.io/badge/Focus-OWASP_Top_10-000000?style=for-the-badge&logo=owasp&logoColor=white)](https://owasp.org)
 [![License](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)](LICENSE)
 
-**Fata Recon & AppSec Audit Suite** adalah perangkat *Command-Line Interface (CLI)* berbasis Python tanpa dependensi eksternal (*zero external dependencies*) untuk melakukan **Web Security Reconnaissance**, **Audit Konfigurasi Header & CORS/Cookie**, **Enumerasi Subdomain Pasif (`crt.sh`)**, serta **Pemindaian Endpoint API** secara cepat dan non-destruktif.
+**Fata Recon & AppSec Audit Suite v3.0** adalah perangkat *Command-Line Interface (CLI)* berbasis Python tanpa dependensi eksternal (*zero external dependencies*) untuk melakukan **Web Security Reconnaissance**, **Audit Konfigurasi Header & CORS/Cookie**, **Enumerasi Subdomain Pasif Multi-Sumber (`OTX + HackerTarget + crt.sh`)**, **API Boundary & Input Validation Fuzzing (`0, -500, 1e308`)**, serta **Generator Laporan PoC & Kode Remediasi Otomatis**.
 
 Dirancang untuk mempercepat tahap *Reconnaissance* pada pengujian **Bug Bounty** maupun audit keamanan aplikasi sebelum rilis produksi (*Pre-Release Security Assessment*).
 
@@ -26,8 +26,11 @@ Dirancang untuk mempercepat tahap *Reconnaissance* pada pengujian **Bug Bounty**
 4. **⚡ Concurrent API & Discovery Endpoint Prober (`--probe`)**
    - Memeriksa ketersediaan endpoint dokumentasi dan API umum (`/api/history`, `/api/health`, `/swagger.json`, `/openapi.json`, `/graphql`, `/.well-known/security.txt`) secara konkurensi (*multi-threaded*).
 
-5. **📄 Automated Markdown Audit Report Generator (`--full`)**
-   - Menjalankan seluruh modul sekaligus dan menghasilkan laporan hasil audit berformat Markdown (`audit_report_<domain>.md`) yang siap dilampirkan pada laporan Bug Bounty.
+5. **🧪 API Boundary & Input Validation Fuzzer (`--fuzz --param <name>`)**
+   - Menguji parameter URL/API dengan *edge-case payloads* (`0`, `-500`, `1e308`, `null`, dan karakter spesial `'\"<>`) untuk mendeteksi *Unhandled Server Exception (HTTP 500)*, *Solver Hang / Latency Spike (DoS)*, atau ketiadaan validasi batas numerik di backend.
+
+6. **📄 Automated PoC & Remediation Blueprint Generator (`--full`)**
+   - Menjalankan seluruh modul sekaligus dan otomatis menyusun laporan Markdown lengkap dengan *Code Blueprint* mitigasi (`Helmet` untuk Header, `CORS Allowlist`, dan `Zod Schema Validation`).
 
 ---
 

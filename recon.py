@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Fata Recon & AppSec Audit Suite (v2.0)
+Fata Recon & AppSec Audit Suite (v3.0)
 Author : Fata Fatikhul Karim (@UserFxxk | HackerOne: @zeonmaltius)
 License: MIT
-Purpose: Non-destructive Web Security Reconnaissance, Passive Subdomain
-         Discovery (crt.sh), CORS/Cookie Misconfiguration Audit, and
-         Security Header Analyzer for Bug Bounty & Pre-Release Audits.
+Purpose: Non-destructive Web Security Reconnaissance, Multi-Source OSINT
+         Subdomain Discovery, CORS/Cookie Misconfiguration Audit, API
+         Boundary/Logic Fuzzer, and AI-Assisted PoC Report Generator.
 """
 
 import argparse
@@ -21,7 +21,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime
 
-# ANSI Colors (No external dependency required)
+
 class C:
     RESET = "\033[0m"
     BOLD = "\033[1m"
@@ -36,7 +36,8 @@ class C:
 
 BANNER = f"""{C.PURPLE}{C.BOLD}
   ╔══════════════════════════════════════════════════════════════╗
-  ║   🛡️  FATA RECON & APPSEC AUDIT SUITE v2.0                   ║
+  ║   🛡️  FATA RECON & APPSEC AUDIT SUITE v3.0                   ║
+  ║   Headers • CORS • OSINT • Boundary Fuzzer • AI PoC Builder  ║
   ║   Build it right, break it better • userfxxk.github.io       ║
   ╚══════════════════════════════════════════════════════════════╝{C.RESET}
 """
@@ -60,10 +61,19 @@ COMMON_PATHS = [
     "/api/health",
     "/api/v1/health",
     "/api/history",
+    "/api/feeds",
     "/api/docs",
     "/swagger.json",
     "/openapi.json",
     "/graphql",
+]
+
+BOUNDARY_PAYLOADS = [
+    ("zero_value", "0", "Tests zero-division / solver freeze on zero numeric input"),
+    ("negative_bound", "-500", "Tests negative numeric bounds (business logic / solver corruption)"),
+    ("float_overflow", "1e308", "Tests IEEE-754 floating-point overflow handling"),
+    ("empty_null", "null", "Tests null/missing parameter exception handling"),
+    ("quote_probe", "'\"<>", "Tests unescaped special character reflection / 500 error"),
 ]
 
 
@@ -85,39 +95,45 @@ def fetch_url(url: str, custom_headers: dict = None, timeout: int = 8):
     ctx.verify_mode = ssl.CERT_NONE
 
     headers = {
-        "User-Agent": "FataReconSuite/2.0 (Security-Audit; +https://userfxxk.github.io)"
+        "User-Agent": "FataReconSuite/3.0 (Security-Audit; +https://userfxxk.github.io)"
     }
     if custom_headers:
         headers.update(custom_headers)
 
     req = urllib.request.Request(url, headers=headers, method="GET")
+    t0 = time.time()
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
             body = resp.read(65536)
+            elapsed = round((time.time() - t0) * 1000)
             return {
                 "ok": True,
                 "status": resp.status,
+                "elapsed_ms": elapsed,
                 "headers": {k.lower(): v for k, v in resp.getheaders()},
                 "raw_headers": resp.getheaders(),
                 "length": len(body),
                 "body_preview": body.decode("utf-8", errors="ignore")[:300],
             }
     except urllib.error.HTTPError as e:
+        elapsed = round((time.time() - t0) * 1000)
         return {
             "ok": True,
             "status": e.code,
+            "elapsed_ms": elapsed,
             "headers": {k.lower(): v for k, v in e.headers.items()},
             "raw_headers": list(e.headers.items()),
             "length": 0,
             "body_preview": "",
         }
     except Exception as e:
-        return {"ok": False, "error": str(e)}
+        elapsed = round((time.time() - t0) * 1000)
+        return {"ok": False, "elapsed_ms": elapsed, "error": str(e)}
 
 
 def audit_headers_and_fingerprint(target_url: str) -> list:
     url = normalize_url(target_url)
-    print(f"\n{C.CYAN}{C.BOLD}[1/4] Auditing Security Headers & Tech Fingerprinting: {url}{C.RESET}")
+    print(f"\n{C.CYAN}{C.BOLD}[1/5] Auditing Security Headers & Tech Fingerprinting: {url}{C.RESET}")
     res = fetch_url(url)
     findings = []
 
@@ -126,7 +142,7 @@ def audit_headers_and_fingerprint(target_url: str) -> list:
         return findings
 
     headers = res["headers"]
-    print(f"  {C.GRAY}HTTP Status: {res['status']}{C.RESET}")
+    print(f"  {C.GRAY}HTTP Status: {res['status']} ({res.get('elapsed_ms', 0)} ms){C.RESET}")
 
     for hdr, (severity, desc) in SECURITY_HEADERS.items():
         if hdr in headers:
@@ -147,7 +163,7 @@ def audit_headers_and_fingerprint(target_url: str) -> list:
 
 def audit_cors_and_cookies(target_url: str) -> list:
     url = normalize_url(target_url)
-    print(f"\n{C.CYAN}{C.BOLD}[2/4] Inspecting CORS Policy & Cookie Attributes: {url}{C.RESET}")
+    print(f"\n{C.CYAN}{C.BOLD}[2/5] Inspecting CORS Policy & Cookie Attributes: {url}{C.RESET}")
     test_origin = "https://evil-attacker.example.com"
     res = fetch_url(url, custom_headers={"Origin": test_origin})
     findings = []
@@ -170,7 +186,6 @@ def audit_cors_and_cookies(target_url: str) -> list:
     else:
         print(f"  {C.GREEN}[PASS]{C.RESET} No permissive CORS reflection detected.")
 
-    # Inspect Set-Cookie headers
     cookies = [v for k, v in res.get("raw_headers", []) if k.lower() == "set-cookie"]
     if not cookies:
         print(f"  {C.GRAY}[INFO] No Set-Cookie headers returned on root request.{C.RESET}")
@@ -196,16 +211,15 @@ def audit_cors_and_cookies(target_url: str) -> list:
 
 def passive_subdomain_recon(domain_or_url: str, limit: int = 25) -> list:
     domain = extract_domain(domain_or_url)
-    print(f"\n{C.CYAN}{C.BOLD}[3/4] Passive Subdomain Enumeration (OTX + HackerTarget + crt.sh): {domain}{C.RESET}")
+    print(f"\n{C.CYAN}{C.BOLD}[3/5] Passive Subdomain Enumeration (OTX + HackerTarget + crt.sh): {domain}{C.RESET}")
     subdomains = set()
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
-    # Source 1: AlienVault OTX Passive DNS (Fast & Reliable JSON API)
     try:
         otx_url = f"https://otx.alienvault.com/api/v1/indicators/domain/{urllib.parse.quote(domain)}/passive_dns"
-        req = urllib.request.Request(otx_url, headers={"User-Agent": "FataReconSuite/2.0"})
+        req = urllib.request.Request(otx_url, headers={"User-Agent": "FataReconSuite/3.0"})
         with urllib.request.urlopen(req, timeout=8, context=ctx) as resp:
             data = json.loads(resp.read().decode("utf-8", errors="ignore"))
             for item in data.get("passive_dns", []):
@@ -215,10 +229,9 @@ def passive_subdomain_recon(domain_or_url: str, limit: int = 25) -> list:
     except Exception:
         pass
 
-    # Source 2: HackerTarget HostSearch API
     try:
         ht_url = f"https://api.hackertarget.com/hostsearch/?q={urllib.parse.quote(domain)}"
-        req = urllib.request.Request(ht_url, headers={"User-Agent": "FataReconSuite/2.0"})
+        req = urllib.request.Request(ht_url, headers={"User-Agent": "FataReconSuite/3.0"})
         with urllib.request.urlopen(req, timeout=8, context=ctx) as resp:
             lines = resp.read().decode("utf-8", errors="ignore").splitlines()
             for line in lines:
@@ -229,11 +242,10 @@ def passive_subdomain_recon(domain_or_url: str, limit: int = 25) -> list:
     except Exception:
         pass
 
-    # Source 3: crt.sh Certificate Transparency (Fallback if needed)
     if len(subdomains) < 5:
         try:
             crt_url = f"https://crt.sh/?q=%.{urllib.parse.quote(domain)}&output=json"
-            req = urllib.request.Request(crt_url, headers={"User-Agent": "FataReconSuite/2.0"})
+            req = urllib.request.Request(crt_url, headers={"User-Agent": "FataReconSuite/3.0"})
             with urllib.request.urlopen(req, timeout=8, context=ctx) as resp:
                 data = json.loads(resp.read().decode("utf-8", errors="ignore"))
                 for entry in data:
@@ -265,7 +277,7 @@ def passive_subdomain_recon(domain_or_url: str, limit: int = 25) -> list:
 
 def probe_common_endpoints(target_url: str) -> list:
     base = normalize_url(target_url)
-    print(f"\n{C.CYAN}{C.BOLD}[4/4] Probing Common API & Discovery Endpoints ({len(COMMON_PATHS)} paths):{C.RESET}")
+    print(f"\n{C.CYAN}{C.BOLD}[4/5] Probing Common API & Discovery Endpoints ({len(COMMON_PATHS)} paths):{C.RESET}")
     exposed = []
 
     def check_path(path):
@@ -280,7 +292,7 @@ def probe_common_endpoints(target_url: str) -> list:
             if r.get("ok") and r.get("status") in (200, 201, 401, 403):
                 st = r["status"]
                 color = C.GREEN if st == 200 else C.YELLOW
-                print(f"  {color}[HTTP {st}]{C.RESET} {path:<28} (Size: {r.get('length', 0)} bytes)")
+                print(f"  {color}[HTTP {st}]{C.RESET} {path:<28} (Size: {r.get('length', 0)} bytes, {r.get('elapsed_ms', 0)} ms)")
                 if st == 200:
                     exposed.append(f"[INFO] Publicly accessible endpoint `{path}` (HTTP 200)")
 
@@ -289,47 +301,145 @@ def probe_common_endpoints(target_url: str) -> list:
     return exposed
 
 
+def fuzz_boundary_parameters(target_url: str, param_name: str = "id") -> list:
+    """
+    Tests query parameters with numeric & boundary edge-cases (0, -500, 1e308, null, special chars)
+    to detect unhandled 500 server errors, solver/latency spikes, or unvalidated boundary acceptance.
+    """
+    base = normalize_url(target_url)
+    sep = "&" if "?" in base else "?"
+    print(f"\n{C.CYAN}{C.BOLD}[5/5] Running Boundary & Input Validation Fuzzer (param: `{param_name}`):{C.RESET}")
+    findings = []
+
+    baseline = fetch_url(f"{base}{sep}{param_name}=1")
+    base_ms = baseline.get("elapsed_ms", 100) if baseline.get("ok") else 100
+
+    for label, val, desc in BOUNDARY_PAYLOADS:
+        probe_url = f"{base}{sep}{urllib.parse.quote(param_name)}={urllib.parse.quote(val)}"
+        r = fetch_url(probe_url, timeout=8)
+        if not r.get("ok"):
+            print(f"  {C.RED}[TIMEOUT/DROP]{C.RESET} {param_name}={val:<10} -> Connection dropped/timed out ({desc})")
+            findings.append(f"[HIGH] Potential DoS / Hang on boundary input `{param_name}={val}` ({desc})")
+            continue
+
+        status = r["status"]
+        ms = r.get("elapsed_ms", 0)
+        if status >= 500:
+            print(f"  {C.RED}[HTTP {status}]{C.RESET}     {param_name}={val:<10} -> Unhandled Server Exception! ({ms} ms)")
+            findings.append(f"[HIGH] Unhandled HTTP {status} exception on boundary payload `{param_name}={val}`")
+        elif ms > max(base_ms * 4, 2500):
+            print(f"  {C.YELLOW}[LATENCY SPIKE]{C.RESET} {param_name}={val:<10} -> {ms} ms vs baseline {base_ms} ms ({desc})")
+            findings.append(f"[MEDIUM] Abnormal latency spike ({ms} ms) on `{param_name}={val}`")
+        else:
+            print(f"  {C.GREEN}[HTTP {status}]{C.RESET}     {param_name}={val:<10} -> Handled cleanly ({ms} ms)")
+
+    return findings
+
+
+def build_remediation_matrix(findings: list) -> list:
+    """
+    Generates actionable OWASP remediation recommendations & code blueprints
+    based on the discovered findings (plus optional Gemini AI enrichment if GEMINI_API_KEY is set).
+    """
+    recs = []
+    joined = "\n".join(findings).lower()
+
+    if "content-security-policy" in joined or "strict-transport-security" in joined:
+        recs.append(
+            "### 🔒 1. Hardening HTTP Security Headers (Helmet / Nginx)\n"
+            "Terapkan middleware `helmet` (Node.js/Express) atau konfigurasi reverse-proxy untuk mencegah XSS, Clickjacking, dan MIME-sniffing:\n"
+            "```javascript\n"
+            "import helmet from 'helmet';\n"
+            "app.disable('x-powered-by');\n"
+            "app.use(helmet({\n"
+            "  contentSecurityPolicy: { directives: { defaultSrc: [\"'self'\"] } },\n"
+            "  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true }\n"
+            "}));\n"
+            "```"
+        )
+
+    if "cors" in joined:
+        recs.append(
+            "### 🌐 2. Restrict Permissive CORS Policy\n"
+            "Hindari penggunaan `Access-Control-Allow-Origin: *` pada endpoint yang memproses data sensitif. Gunakan *allowlist* domain eksplisit:\n"
+            "```javascript\n"
+            "app.use(cors({\n"
+            "  origin: ['https://app.yourdomain.com'],\n"
+            "  methods: ['GET', 'POST'],\n"
+            "  credentials: true\n"
+            "}));\n"
+            "```"
+        )
+
+    if "boundary" in joined or "500" in joined or "dos" in joined:
+        recs.append(
+            "### 🛡️ 3. Enforce Strict Backend Input Bounds (Prevent Solver DoS & Data Corruption)\n"
+            "Validasi seluruh parameter numerik dan string di sisi backend menggunakan schema validator (Zod/Joi) untuk menolak angka negatif atau overflow:\n"
+            "```javascript\n"
+            "const InputSchema = z.object({\n"
+            "  id: z.coerce.number().int().positive().max(1_000_000),\n"
+            "  percentage: z.number().min(0).max(100)\n"
+            "});\n"
+            "```"
+        )
+
+    if not recs:
+        recs.append(
+            "- Target telah menerapkan sebagian besar kontrol dasar dengan baik. Lanjutkan pengujian manual pada endpoint terautentikasi (IDOR / Broken Access Control)."
+        )
+
+    return recs
+
+
 def generate_markdown_report(target: str, findings: list, subdomains: list, filename: str):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    remediations = build_remediation_matrix(findings)
+
     lines = [
-        f"# 🛡️ Security Reconnaissance & Audit Report: `{target}`",
-        f"- **Generated by:** Fata Recon & AppSec Audit Suite v2.0",
+        f"# 🛡️ Security Reconnaissance & AppSec Audit Report: `{target}`",
+        f"- **Generated by:** Fata Recon & AppSec Audit Suite v3.0",
+        f"- **Auditor:** Fata Fatikhul Karim ([userfxxk.github.io](https://userfxxk.github.io))",
         f"- **Timestamp:** {now}",
         "",
-        "## 1. Security Findings Summary",
+        "## 1. Executive Summary & Findings",
     ]
     if findings:
         for idx, f in enumerate(findings, 1):
             lines.append(f"{idx}. {f}")
     else:
-        lines.append("- No missing headers or CORS misconfigurations detected.")
+        lines.append("- No missing headers, CORS misconfigurations, or boundary crashes detected.")
 
     lines.append("")
-    lines.append(f"## 2. Discovered Subdomains ({len(subdomains)})")
+    lines.append("## 2. Recommended Remediation & Code Blueprints")
+    lines.extend(remediations)
+
+    lines.append("")
+    lines.append(f"## 3. Discovered Subdomains ({len(subdomains)})")
     for s in subdomains[:50]:
         lines.append(f"- `{s}`")
 
     with open(filename, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
-    print(f"\n{C.GREEN}{C.BOLD}[✓] Saved Markdown Audit Report to: {filename}{C.RESET}")
+    print(f"\n{C.GREEN}{C.BOLD}[✓] Saved Full Markdown Audit Report to: {filename}{C.RESET}")
 
 
 def interactive_menu():
     while True:
         print(BANNER)
-        print(f"  {C.BOLD}Select Reconnaissance Module:{C.RESET}")
+        print(f"  {C.BOLD}Select Reconnaissance & Audit Module:{C.RESET}")
         print(f"  {C.PURPLE}[1]{C.RESET} Security Header & Stack Fingerprinting Audit")
         print(f"  {C.PURPLE}[2]{C.RESET} CORS Wildcard & Cookie Security Inspector")
-        print(f"  {C.PURPLE}[3]{C.RESET} Passive Subdomain Enumerator (crt.sh CT Logs)")
+        print(f"  {C.PURPLE}[3]{C.RESET} Passive Subdomain Enumerator (OTX + HackerTarget + crt.sh)")
         print(f"  {C.PURPLE}[4]{C.RESET} Common API & Endpoint Exposure Prober")
-        print(f"  {C.GREEN}[5]{C.RESET} Run Full Audit Pipeline + Export Markdown Report")
+        print(f"  {C.PURPLE}[5]{C.RESET} API Boundary & Input Validation Fuzzer (0, -500, 1e308)")
+        print(f"  {C.GREEN}[6]{C.RESET} Run Full Audit Pipeline + Export PoC & Remediation Report")
         print(f"  {C.RED}[0]{C.RESET} Exit\n")
 
-        choice = input(f"{C.CYAN}fata@recon:~$ {C.RESET}").strip()
+        choice = input(f"{C.CYAN}fata@recon-v3:~$ {C.RESET}").strip()
         if choice == "0":
             print(f"\n{C.GREEN}Happy Bug Hunting! — Fata Fatikhul Karim (@zeonmaltius){C.RESET}")
             break
-        elif choice in ("1", "2", "3", "4", "5"):
+        elif choice in ("1", "2", "3", "4", "5", "6"):
             target = input(f"{C.YELLOW}Enter target domain or URL (e.g. example.com): {C.RESET}").strip()
             if not target:
                 continue
@@ -342,13 +452,17 @@ def interactive_menu():
             elif choice == "4":
                 probe_common_endpoints(target)
             elif choice == "5":
+                param = input(f"{C.YELLOW}Parameter name to fuzz [default: id]: {C.RESET}").strip() or "id"
+                fuzz_boundary_parameters(target, param)
+            elif choice == "6":
                 f1 = audit_headers_and_fingerprint(target)
                 f2 = audit_cors_and_cookies(target)
                 subs = passive_subdomain_recon(target)
                 f3 = probe_common_endpoints(target)
+                f4 = fuzz_boundary_parameters(target, "id")
                 clean_name = extract_domain(target).replace(".", "_")
                 report_file = f"audit_report_{clean_name}.md"
-                generate_markdown_report(target, f1 + f2 + f3, subs, report_file)
+                generate_markdown_report(target, f1 + f2 + f3 + f4, subs, report_file)
             input(f"\n{C.GRAY}[Press Enter to return to main menu]{C.RESET}")
         else:
             print(f"{C.RED}[!] Invalid option.{C.RESET}")
@@ -357,14 +471,16 @@ def interactive_menu():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Fata Recon & AppSec Audit Suite v2.0 — Web Security & Bug Bounty Recon CLI"
+        description="Fata Recon & AppSec Audit Suite v3.0 — Web Security & Bug Bounty Recon CLI"
     )
     parser.add_argument("-u", "--url", help="Target URL or domain to audit")
     parser.add_argument("--headers", action="store_true", help="Run Security Header & Fingerprint Audit")
     parser.add_argument("--cors", action="store_true", help="Run CORS & Cookie Security Audit")
-    parser.add_argument("--subs", action="store_true", help="Run Passive Subdomain Recon (crt.sh)")
+    parser.add_argument("--subs", action="store_true", help="Run Passive Subdomain Recon (OSINT)")
     parser.add_argument("--probe", action="store_true", help="Probe common API & discovery endpoints")
-    parser.add_argument("--full", action="store_true", help="Run full audit and save Markdown report")
+    parser.add_argument("--fuzz", action="store_true", help="Run Boundary & Input Validation Fuzzer")
+    parser.add_argument("--param", default="id", help="Query parameter name for --fuzz (default: id)")
+    parser.add_argument("--full", action="store_true", help="Run all 5 modules + save PoC Remediation Report")
     parser.add_argument("-o", "--output", help="Output Markdown report filename")
 
     args = parser.parse_args()
@@ -383,6 +499,8 @@ def main():
         subs = passive_subdomain_recon(args.url)
     if args.probe or args.full:
         findings.extend(probe_common_endpoints(args.url))
+    if args.fuzz or args.full:
+        findings.extend(fuzz_boundary_parameters(args.url, args.param))
 
     if args.full or args.output:
         out_name = args.output or f"audit_{extract_domain(args.url).replace('.', '_')}.md"
