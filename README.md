@@ -1,6 +1,7 @@
 # 🛡️ Fata Recon & AppSec Audit Suite (v3.0)
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![Unit Tests](https://img.shields.io/badge/Unittests-5%2F5_Passing-10B981?style=for-the-badge&logo=pytest&logoColor=white)](tests/test_recon.py)
 [![OWASP](https://img.shields.io/badge/Focus-OWASP_Top_10-000000?style=for-the-badge&logo=owasp&logoColor=white)](https://owasp.org)
 [![License](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)](LICENSE)
 
