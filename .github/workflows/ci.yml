@@ -1,4 +1,4 @@
-name: Python Unit Tests & AppSec CLI Verification
+name: Python Unit Tests & AppSec Remediation Suite
 
 on:
   push:
@@ -18,8 +18,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run unittest suite
+      - name: Run Python unittest suite (5/5 CLI & OSINT tests)
         run: python3 -m unittest discover -s tests -v
 
       - name: Verify CLI help & zero-dependency import
         run: python3 recon.py --help
+
+      - name: Run Node.js AppSec Remediation Blueprint Regression Tests (SOLVER-01..08)
+        run: node --test examples/express-solver-remediation/solver-security.test.js
