@@ -36,6 +36,19 @@ class TestFataReconSuite(unittest.TestCase):
         self.assertIn("cors", recs)
         self.assertIn("InputSchema", recs)
 
+    def test_build_json_report_counts_severities_accurately(self):
+        findings = [
+            "[HIGH] Missing security header `content-security-policy`",
+            "[MEDIUM] Permissive CORS Wildcard (`Access-Control-Allow-Origin: *`)",
+            "[LOW] Missing security header `referrer-policy`",
+        ]
+        report = recon.build_json_report("https://example.com", findings, [("api.example.com", "93.184.216.34")])
+        self.assertEqual(report["summary"]["total_findings"], 3)
+        self.assertEqual(report["summary"]["high"], 1)
+        self.assertEqual(report["summary"]["medium"], 1)
+        self.assertEqual(report["summary"]["low"], 1)
+        self.assertEqual(report["summary"]["subdomains_discovered"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

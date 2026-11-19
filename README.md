@@ -2,7 +2,8 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![CI](https://github.com/fatakarim/fata-termux-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/fatakarim/fata-termux-toolkit/actions)
-[![Unit Tests](https://img.shields.io/badge/Tests-9%2F9_Passing_(Python_%2B_Node)-10B981?style=for-the-badge&logo=pytest&logoColor=white)](tests/test_recon.py)
+[![Unit Tests](https://img.shields.io/badge/Tests-10%2F10_Passing_(Python_%2B_Node)-10B981?style=for-the-badge&logo=pytest&logoColor=white)](tests/test_recon.py)
+[![GitHub Action](https://img.shields.io/badge/DevSecOps-GitHub_Action_Ready-6C63FF?style=for-the-badge&logo=githubactions&logoColor=white)](action.yml)
 [![OWASP](https://img.shields.io/badge/Focus-OWASP_Top_10-000000?style=for-the-badge&logo=owasp&logoColor=white)](https://owasp.org)
 [![License](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)](LICENSE)
 
@@ -59,8 +60,20 @@ python3 recon.py -u https://example.com --headers --cors
 # Multi-Source Passive Subdomain Enumeration (OTX + HackerTarget + crt.sh)
 python3 recon.py -u example.com --subs
 
-# Full Authorized Audit (including non-destructive boundary probing) + Markdown Report export
-python3 recon.py -u https://example.com --full --confirm-authorized -o audit_report.md
+# Full Authorized Audit (including non-destructive boundary probing) + Markdown & JSON CI Report export
+python3 recon.py -u https://example.com --full --confirm-authorized -o audit_report.md --json-out audit.json
+```
+
+### 3. DevSecOps CI/CD Integration (Composite GitHub Action)
+Embed `fata-termux-toolkit` directly inside any repository's GitHub Actions pipeline as an automated pre-release security gate:
+
+```yaml
+- name: Run Fata AppSec Header & CORS Gate
+  uses: fatakarim/fata-termux-toolkit@v3.0.0
+  with:
+    target_url: "https://staging.example.com"
+    fail_on_high: "true"
+    output_json: "appsec_audit.json"
 ```
 
 ---

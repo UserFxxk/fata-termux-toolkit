@@ -1,0 +1,31 @@
+name: "Fata Recon & AppSec Audit Suite (DevSecOps Gate)"
+description: "Zero-dependency Python 3 Action for HTTP Security Header auditing, CORS/Cookie inspection, and Passive Subdomain OSINT"
+author: "Fata Fatikhul Karim (@fatakarim)"
+branding:
+  icon: "shield"
+  color: "purple"
+
+inputs:
+  target_url:
+    description: "Target URL or domain to audit (e.g. https://staging.example.com)"
+    required: true
+  fail_on_high:
+    description: "Fail the CI step if any HIGH severity security header or CORS finding is detected"
+    required: false
+    default: "false"
+  output_json:
+    description: "Path to write JSON telemetry output"
+    required: false
+    default: "appsec_audit.json"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run Fata Recon & AppSec Audit Suite v3.0
+      shell: bash
+      run: |
+        FLAGS="--headers --cors --json-out ${{ inputs.output_json }}"
+        if [ "${{ inputs.fail_on_high }}" = "true" ]; then
+          FLAGS="$FLAGS --fail-on-high"
+        fi
+        python3 "${{ github.action_path }}/recon.py" -u "${{ inputs.target_url }}" $FLAGS

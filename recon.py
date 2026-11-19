@@ -423,6 +423,30 @@ def generate_markdown_report(target: str, findings: list, subdomains: list, file
     print(f"\n{C.GREEN}{C.BOLD}[✓] Saved Full Markdown Audit Report to: {filename}{C.RESET}")
 
 
+def build_json_report(target, findings, subdomains):
+    """Builds a structured JSON / CI-compatible telemetry object."""
+    high_count = sum(1 for f in findings if "[HIGH]" in f)
+    med_count = sum(1 for f in findings if "[MEDIUM]" in f)
+    low_count = sum(1 for f in findings if "[LOW]" in f)
+    info_count = len(findings) - (high_count + med_count + low_count)
+    return {
+        "tool": "Fata Recon & AppSec Audit Suite v3.0",
+        "target": normalize_url(target),
+        "domain": extract_domain(target),
+        "timestamp_utc": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "summary": {
+            "total_findings": len(findings),
+            "high": high_count,
+            "medium": med_count,
+            "low": low_count,
+            "info": info_count,
+            "subdomains_discovered": len(subdomains),
+        },
+        "findings": findings,
+        "subdomains": subdomains,
+    }
+
+
 def interactive_menu():
     while True:
         print(BANNER)
@@ -487,6 +511,12 @@ def main():
     )
     parser.add_argument("--full", action="store_true", help="Run all modules + save PoC Remediation Report")
     parser.add_argument("-o", "--output", help="Output Markdown report filename")
+    parser.add_argument("--json-out", help="Export structured JSON telemetry report for CI/CD pipelines")
+    parser.add_argument(
+        "--fail-on-high",
+        action="store_true",
+        help="Exit with non-zero code (1) if any [HIGH] severity finding is detected (DevSecOps CI gate)",
+    )
 
     args = parser.parse_args()
     if not args.url:
@@ -516,6 +546,16 @@ def main():
     if args.full or args.output:
         out_name = args.output or f"audit_{extract_domain(args.url).replace('.', '_')}.md"
         generate_markdown_report(args.url, findings, subs, out_name)
+
+    if args.json_out:
+        report_obj = build_json_report(args.url, findings, subs)
+        with open(args.json_out, "w", encoding="utf-8") as jh:
+            json.dump(report_obj, jh, indent=2)
+        print(f"{C.GREEN}{C.BOLD}[✓] Exported JSON CI Telemetry Report to: {args.json_out}{C.RESET}")
+
+    if args.fail_on_high and any("[HIGH]" in f for f in findings):
+        print(f"{C.RED}{C.BOLD}[CI GATE FAILED] High-severity finding(s) detected on {args.url}.{C.RESET}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
