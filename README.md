@@ -26,8 +26,9 @@ Dirancang untuk mempercepat tahap *Reconnaissance* pada pengujian **Bug Bounty**
 4. **⚡ Concurrent API & Discovery Endpoint Prober (`--probe`)**
    - Memeriksa ketersediaan endpoint dokumentasi dan API umum (`/api/history`, `/api/health`, `/swagger.json`, `/openapi.json`, `/graphql`, `/.well-known/security.txt`) secara konkurensi (*multi-threaded*).
 
-5. **🧪 API Boundary & Input Validation Fuzzer (`--fuzz --param <name>`)**
+5. **🧪 API Boundary & Input Validation Fuzzer (`--fuzz --param <name> --confirm-authorized`)**
    - Menguji parameter URL/API dengan *edge-case payloads* (`0`, `-500`, `1e308`, `null`, dan karakter spesial `'\"<>`) untuk mendeteksi *Unhandled Server Exception (HTTP 500)*, *Solver Hang / Latency Spike (DoS)*, atau ketiadaan validasi batas numerik di backend.
+   - **Safety Guardrail:** Modul `--fuzz` secara default dinonaktifkan kecuali pengguna menyertakan flag eksplisit `--confirm-authorized` sebagai konfirmasi bahwa pengujian dilakukan pada target yang memiliki izin tertulis (*Authorized Target / Bug Bounty Scope*).
 
 6. **📄 Automated PoC & Remediation Blueprint Generator (`--full`)**
    - Menjalankan seluruh modul sekaligus dan otomatis menyusun laporan Markdown lengkap dengan *Code Blueprint* mitigasi (`Helmet` untuk Header, `CORS Allowlist`, dan `Zod Schema Validation`).
@@ -45,13 +46,13 @@ python3 recon.py
 
 ### Mode CLI (Baris Perintah Langsung)
 ```bash
-# Jalankan Full Audit & simpan laporan otomatis ke Markdown
-python3 recon.py -u example.com --full
+# Jalankan Full Audit (termasuk boundary fuzzer pada target berizin) & simpan laporan ke Markdown
+python3 recon.py -u example.com --full --confirm-authorized
 
-# Hanya cek Security Headers & CORS/Cookie
+# Hanya cek pasif/header (Security Headers & CORS/Cookie)
 python3 recon.py -u https://example.com --headers --cors
 
-# Enumerasi Subdomain Pasif (crt.sh)
+# Enumerasi Subdomain Pasif (OTX + HackerTarget + crt.sh)
 python3 recon.py -u example.com --subs
 ```
 

@@ -478,9 +478,14 @@ def main():
     parser.add_argument("--cors", action="store_true", help="Run CORS & Cookie Security Audit")
     parser.add_argument("--subs", action="store_true", help="Run Passive Subdomain Recon (OSINT)")
     parser.add_argument("--probe", action="store_true", help="Probe common API & discovery endpoints")
-    parser.add_argument("--fuzz", action="store_true", help="Run Boundary & Input Validation Fuzzer")
+    parser.add_argument("--fuzz", action="store_true", help="Run Boundary & Input Validation Fuzzer (requires --confirm-authorized)")
     parser.add_argument("--param", default="id", help="Query parameter name for --fuzz (default: id)")
-    parser.add_argument("--full", action="store_true", help="Run all 5 modules + save PoC Remediation Report")
+    parser.add_argument(
+        "--confirm-authorized",
+        action="store_true",
+        help="Explicitly confirm you have written authorization to test the target domain",
+    )
+    parser.add_argument("--full", action="store_true", help="Run all modules + save PoC Remediation Report")
     parser.add_argument("-o", "--output", help="Output Markdown report filename")
 
     args = parser.parse_args()
@@ -500,7 +505,13 @@ def main():
     if args.probe or args.full:
         findings.extend(probe_common_endpoints(args.url))
     if args.fuzz or args.full:
-        findings.extend(fuzz_boundary_parameters(args.url, args.param))
+        if not args.confirm_authorized:
+            print(
+                f"\n{C.YELLOW}[SAFETY GUARDRAIL] Skipping active boundary fuzzer (--fuzz): "
+                f"add `--confirm-authorized` to confirm written testing permission on {args.url}.{C.RESET}"
+            )
+        else:
+            findings.extend(fuzz_boundary_parameters(args.url, args.param))
 
     if args.full or args.output:
         out_name = args.output or f"audit_{extract_domain(args.url).replace('.', '_')}.md"
