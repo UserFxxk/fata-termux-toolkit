@@ -38,7 +38,7 @@ Dirancang untuk mempercepat tahap *Reconnaissance* pada pengujian **Bug Bounty**
 
 ### Mode Interaktif (Menu TUI)
 ```bash
-git clone https://github.com/UserFxxk/fata-termux-toolkit.git
+git clone https://github.com/fatakarim/fata-termux-toolkit.git
 cd fata-termux-toolkit
 python3 recon.py
 ```
@@ -62,7 +62,7 @@ python3 recon.py -u example.com --subs
 ```text
   ╔══════════════════════════════════════════════════════════════╗
   ║   🛡️  FATA RECON & APPSEC AUDIT SUITE v2.0                   ║
-  ║   Build it right, break it better • userfxxk.github.io       ║
+  ║   Build it right, break it better • fatakarim.github.io       ║
   ╚══════════════════════════════════════════════════════════════╝
 
 [1/4] Auditing Security Headers & Tech Fingerprinting: https://example.com
@@ -82,6 +82,6 @@ Perkakas ini dibuat murni untuk tujuan edukasi, riset keamanan yang sah (*Author
 
 ## 👨‍💻 Author
 **Fata Fatikhul Karim**
-- 🌐 Portfolio: [https://userfxxk.github.io](https://userfxxk.github.io)
+- 🌐 Portfolio: [https://fatakarim.github.io](https://fatakarim.github.io)
 - 💼 LinkedIn: [linkedin.com/in/fata-fatikhul-karim](https://www.linkedin.com/in/fata-fatikhul-karim)
 - 🛡️ HackerOne: [@zeonmaltius](https://hackerone.com/zeonmaltius)
