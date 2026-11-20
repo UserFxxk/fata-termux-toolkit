@@ -19,7 +19,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class C:
@@ -433,7 +433,7 @@ def build_json_report(target, findings, subdomains):
         "tool": "Fata Recon & AppSec Audit Suite v3.0",
         "target": normalize_url(target),
         "domain": extract_domain(target),
-        "timestamp_utc": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "summary": {
             "total_findings": len(findings),
             "high": high_count,
